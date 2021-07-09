@@ -430,8 +430,6 @@ Local<Value> ODBC::GetColumnValue( SQLHSTMT hStmt, Column column,
 
   switch ((int) column.type) 
   {
-    case SQL_BIGINT :
-      DEBUG_PRINTF("BIGINT DATA SELECTED\n");
     case SQL_INTEGER : 
     case SQL_SMALLINT :
     case SQL_TINYINT : 
@@ -444,8 +442,8 @@ Local<Value> ODBC::GetColumnValue( SQLHSTMT hStmt, Column column,
                           sizeof(value), 
                           &len);
         
-        DEBUG_PRINTF("ODBC::GetColumnValue - Integer: index=%i name=%s type=%i len=%i ret=%i\n", 
-                     column.index, column.name, column.type, len, ret);
+        DEBUG_PRINTF("ODBC::GetColumnValue - Integer: index=%i name=%s type=%i len=%i ret=%i, val = %ld\n", 
+                     column.index, column.name, column.type, len, ret, value);
         
         if ((int)len == SQL_NULL_DATA) {
           return scope.Escape(Nan::Null());
@@ -461,6 +459,29 @@ Local<Value> ODBC::GetColumnValue( SQLHSTMT hStmt, Column column,
         }
         else {
           return scope.Escape(Nan::New<Number>(value));
+        }
+      }
+      break;
+
+    case SQL_BIGINT :
+      DEBUG_PRINTF("BIGINT DATA SELECTED\n");
+      {
+        long long value;
+        ret = SQLGetData( hStmt, 
+                          column.index, 
+                          SQL_C_SBIGINT,
+                          &value, 
+                          sizeof(value), 
+                          &len);
+        
+        DEBUG_PRINTF("ODBC::GetColumnValue - BigInt: index=%i name=%s type=%i len=%i ret=%i, value=%ld\n", 
+                     column.index, column.name, column.type, len, ret, value);
+        
+        if ((int)len == SQL_NULL_DATA) {
+          return scope.Escape(Nan::Null());
+        }
+        else {
+          return scope.Escape(Nan::New<Number>((long long)value));
         }
       }
       break;
@@ -1111,11 +1132,6 @@ void ODBC::GetNumberParam(Local<Value> value, Parameter * param, int num)
     Nan::Utf8String string(value);
     int length = string.length();
     char* ptr = strchr(*string, '.');
-    if (ptr) {
-      param->decimals = length - (ptr - *string) - 1;
-    } else {
-      param->decimals = 0;
-    }
       
     if(!param->c_type || (param->c_type == SQL_C_CHAR)) 
         param->c_type    = SQL_C_DOUBLE;
@@ -1125,6 +1141,17 @@ void ODBC::GetNumberParam(Local<Value> value, Parameter * param, int num)
     param->buffer_length = sizeof(double);
     param->length        = param->buffer_length;
     param->size          = sizeof(double);
+    if (ptr) {
+      param->decimals = length - (ptr - *string) - 1;
+      if (param->type == SQL_DECIMAL) {
+          param->size = length - 1;
+      }
+    } else {
+      param->decimals = 0;
+      if (param->type == SQL_DECIMAL) {
+          param->size = length;
+      }
+    }
 
     DEBUG_PRINTF("ODBC::GetNumberParam: param%u : paramtype=%u, c_type=%i, "
                  "type=%i, size=%i, decimals=%i, buffer=%f, buffer_length=%i, "
@@ -1212,7 +1239,7 @@ void ODBC::GetArrayParam(Local<Value> value, Parameter * param, int num)
           GetNumberParam(val, param, num);
           number[i] = *(double*)param->buffer;
           param->strLenArray[i] = param->length;
-          delete param->buffer;
+          delete (double *)param->buffer;
           param->buffer = NULL;
           decimals = (decimals < param->decimals) ? param->decimals : decimals;
         }
@@ -1233,7 +1260,7 @@ void ODBC::GetArrayParam(Local<Value> value, Parameter * param, int num)
           GetBoolParam(val, param, num);
           boolean[i] = *(int64_t*)(param->buffer);
           param->strLenArray[i] = (SQLINTEGER)param->length;
-          delete param->buffer;
+          delete (int64_t *)param->buffer;
           param->buffer = NULL;
         }
         param->buffer  = boolean;
@@ -1267,7 +1294,7 @@ void ODBC::GetArrayParam(Local<Value> value, Parameter * param, int num)
                       "cbValueMax=%i\n", num, bufflen, cbValueMax);
           }
           bufflen  = cbValueMax; // Length of max data to be copied.
-          if( param->length > 0 && bufflen > param->length ) {
+          if( param->length > 0 && bufflen > (SQLUINTEGER)param->length ) {
               bufflen = param->length;
           }
           memcpy((char*)buff + i * cbValueMax, param->buffer, bufflen);

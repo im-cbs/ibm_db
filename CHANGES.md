@@ -1,3 +1,31 @@
+2021-06-17, Version 2.7.4
+=========================
+
+ * fea: add support for node.js v16.x (Bimal Jha)
+
+ * fix test file issue (Bimal Jha)
+
+ * fix for decimal issue#761 (Bimal Jha)
+
+ * build(deps): bump lodash from 4.17.19 to 4.17.21 (#764) (dependabot[bot])
+
+ * Electron 12 support for vs code. (#766) (Akhil Ravuri)
+
+ * fix bigint issue #750 (Bimal Jha)
+
+ * electeron binaries added (#756) (Akhil Ravuri)
+
+
+2021-03-15, Version 2.7.3
+=========================
+
+ * fix warnings and test failure (Bimal Jha)
+
+ * fix: remove undefined macros for z/OS (Bimal Jha)
+
+ * update windows binary for Electron 11.2.1 (Bimal Jha)
+
+
 2021-01-20, Version 2.7.2
 =========================
 
